@@ -1,0 +1,567 @@
+// Line BOT Reply Information
+// j.jaru
+
+var channel_access_token = "gAUA8yHS9K3TliaSg....";//IM-BOT
+
+function doPost(e) {
+
+  var events = JSON.parse(e.postData.contents).events;
+  events.forEach(function(event) {
+
+    if(event.type == "message"){
+      if (event.message.type === "text"){lineReply(event);}
+      else if(event.message.type === "location"){distanceCal(e);}
+    }
+    else if(event.type == "follow"){ /* เพิ่มเพื่อน / ปลดบล็อก */ }
+    else if(event.type == "unfollow"){ /* กลุ่ม */ }
+ });
+}
+
+function lineReply(e) {
+
+  var ss = SpreadsheetApp.openById('1Ul4HwK5HTTivev6g4....');//Google sheet ที่เป็น database ข้อมูลสำหรับ Line ฺBOT
+
+  /** เก็บค่า last Row หรือบันทัดสุดท้าย **/
+ var lowNum = ss.getSheets()[0].getLastRow();
+ var lowNum_cfg = ss.getSheets()[1].getLastRow();
+ var lowNum_location = ss.getSheets()[2].getLastRow();
+
+  /** เก็บค่าตั้งต้นสำหรับการค้นหาใน sheet ต่าง ๆ **/
+  var wordArray = ss.getSheets()[0].getRange(2, 1, lowNum, 1).getValues(); //รับค่าจาก Sheet(0) หรือ Sheet"data" เริ่มตั้งแต่ตำแหน่ง Row.2,Col.1 [SiteCode] ไปจนถึงแถวสุดท้าย
+
+  var wordArray2 = ss.getSheets()[0].getRange(2, 9, lowNum, 1).getValues(); //รับค่าจาก Sheet(0) หรือ Sheet"data" เริ่มตั้งแต่ตำแหน่ง Row.2,Col.9 [Hex] ไปจนถึงแถวสุดท้าย
+
+  var wordArray3 = ss.getSheets()[1].getRange(2, 1, lowNum_cfg, 1).getValues(); //รับค่าจาก Sheet(1) หรือ Sheet"cfg" เริ่มตั้งแต่ตำแหน่ง Row.2,Col.1 [cfg.searchWord] ไปจนถึงแถวสุดท้าย
+
+  var wordArray5 = ss.getSheets()[2].getRange(2, 1, lowNum_location, 1).getValues(); //รับค่าจาก Sheet(2) หรือ Sheet"Location" เริ่มตั้งแต่ตำแหน่ง Row.2,Col.1 [L.searchWord] ไปจนถึงแถวสุดท้าย
+  
+  /** จัดเก็บข้อความค้นหาที่ส่งเข้ามาจาก LINE **/
+  var replyToken = e.replyToken
+  var searchWord = e.message.text;
+
+  /** เก็บค่าตัวแปรที่จะค่าคืน **/
+  var result;
+  var ranid = [];
+  var output = [];
+  var gngdata;
+  var locationdata;
+  var searchWord = searchWord.toUpperCase();
+  
+    if(searchWord != 0){
+result = 'Site not found'+'\n'+'Please verify your Site Code' 
+} 
+
+  /** เปรียบเทียบข้อมูลตั้งต้นกับคำค้นหา **/ 
+    for(var i = 0; i < lowNum; i++){
+    if( searchWord === wordArray[i][0] || searchWord === wordArray2[i][0] ){
+      SpreadsheetApp.setActiveSheet(ss.getSheetByName("data"));
+      var activeSheet=ss.getActiveSheet();
+      var cola =  ss.getSheets()[0].getRange(i+2, 1).getValue();
+      var colb =  ss.getSheets()[0].getRange(i+2, 2).getValue();
+      var colc =  ss.getSheets()[0].getRange(i+2, 3).getValue();
+      var cold =  ss.getSheets()[0].getRange(i+2, 4).getValue();
+      var cole =  ss.getSheets()[0].getRange(i+2, 5).getValue();
+      var colf =  ss.getSheets()[0].getRange(i+2, 6).getValue();
+      var colg =  ss.getSheets()[0].getRange(i+2, 7).getValue();
+      var colh =  ss.getSheets()[0].getRange(i+2, 8).getValue();
+      var coli =  ss.getSheets()[0].getRange(i+2, 9).getValue();
+      
+        result = searchWord + '\n'+
+        
+        "\แสดงข้อมูล Site : " + cola+'\n'+
+          
+            "\ชื่อสถานี : " + colb + '\n'+
+              
+              "\ตำบล : " + colc + '\n'+
+                
+                "\อำเภอ : " + cold +'\n'+
+                  
+                  "\จังหวัด ：" + cole +'\n'+
+         '\n'+         
+                      "\Hex : " + coli + '\n';
+      SentToLine(replyToken,result); 
+      break;
+      }
+ }
+  /** เปรียบเทียบข้อมูลตั้งต้นกับคำค้นหา และ Reply กลับในแบบ Location **/ 
+/////////////////////// Location /////////////////////////////////    
+  for(var i = 0; i < lowNum_location; i++){
+    if( searchWord === wordArray5[i][0]){
+      SpreadsheetApp.setActiveSheet(ss.getSheetByName("Location"));
+      var activeSheet=ss.getActiveSheet();
+      var lat_data =  ss.getSheetByName("Location").getRange(i+2, 3).getValue();
+      var long_data =  ss.getSheetByName("Location").getRange(i+2, 4).getValue();
+      var loc_name =  ss.getSheetByName("Location").getRange(i+2, 5).getValue();
+      result = searchWord+'\n'+'Latitude:'+lat_data+'\n'+'Longitude:'+long_data; 
+      pushlocation(replyToken,searchWord,lat_data,long_data,loc_name);
+   break;
+   }
+  }
+///////////////////////////////////////////////////////////////////  
+
+/////////////////////// CFG /////////////////////////////////    
+  for(var i = 0; i < lowNum_cfg; i++){
+    if( searchWord === wordArray3[i][0]){
+      SpreadsheetApp.setActiveSheet(ss.getSheetByName("cfg"));
+      var activeSheet=ss.getActiveSheet();
+      var colc =  ss.getSheets()[1].getRange(i+2, 3).getValue();
+  
+   result = searchWord + '\n'+
+        
+        "\*แสดงข้อมูล CFG*" + '\n'+
+          
+            "\Link Download : " + colc + '\n';
+
+   SentToLine(replyToken,result); 
+   break;
+   }
+  }
+////////////////////////End CFG /////////////////////////////
+
+}
+
+
+function distanceCal(e) {
+  var ssId = "1Ul4HwK5HTTivev6g42xtmcUerPxKFDXOLhrPPaMwvAc";///Google sheet ที่เป็น database ข้อมูลสำหรับ Line ฺBOT
+  var ss = SpreadsheetApp.openById(ssId);
+  var requestJSON = e.postData.contents;
+//----------------------------------------------------------
+  var value = JSON.parse(e.postData.contents);
+        var events = value.events;
+        var e = events[0];
+        var type = e.message.type;
+        var replyToken = e.replyToken;
+        var sourceType = e.source.type;
+        var userId = e.source.userId;
+        var groupId = e.source.groupId;
+        var timeStamp = e.timestamp;
+ 
+        switch (type) {
+          case 'location':
+                  var pointLat = e.message.latitude;
+                  var pointLong = e.message.longitude;
+
+var cellLat = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('J2').setValue(pointLat);
+var cellLong = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('K2').setValue(pointLong);
+var firstSite = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('J12').getValue();    
+var firstLocation = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('K12').getValue();
+var firstSubDistrict = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('L12').getValue();
+var firstDistrict = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('M12').getValue();
+var firstProvince = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('N12').getValue();
+var firstLatLong = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('O12').getValue();
+var firstLat = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('P12').getValue();
+var firstLong = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('Q12').getValue();
+var secondSite = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('J13').getValue();    
+var secondLocation = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('K13').getValue();
+var secondSubDistrict = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('L13').getValue();
+var secondtDistrict = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('M13').getValue();
+var secondtProvince = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('N13').getValue();
+var secondLatLong = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('O13').getValue();
+var secondLat = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('P13').getValue();
+var secondLong = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('Q13').getValue();
+var thirdSite = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('J14').getValue();    
+var thirdLocation = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('K14').getValue();
+var thirdSubDistrict = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('L14').getValue();
+var thirdDistrict = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('M14').getValue();
+var thirdProvince = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('N14').getValue();
+var thirdLatLong = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('O14').getValue();
+var thirdLat = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('P14').getValue();
+var thirdLong = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Distance").getRange('Q14').getValue();
+
+        SentToLineFlex(replyToken,firstSite,firstLocation,firstSubDistrict,firstDistrict,firstProvince,firstLat,firstLong,secondSite,secondLocation,secondSubDistrict,secondtDistrict,secondtProvince,secondLat,secondLong,thirdSite,thirdLocation,thirdSubDistrict,thirdDistrict,thirdProvince,thirdLat,thirdLong);
+
+        }
+}
+
+
+///////////////////Start SentToLine////////////////////////////////////////////////  
+function SentToLine(replyToken,result) {
+  var url = "https://api.line.me/v2/bot/message/reply";
+  var postData = {
+    "replyToken" : replyToken,
+    "messages" : [
+      {
+        "type" : "text",
+        "text" : result
+      }
+    ]
+  };
+  var options = {
+    "method" : "post",
+    "headers" : {
+      "Content-Type" : "application/json",
+      "Authorization" : "Bearer " + channel_access_token
+    },
+    "payload" : JSON.stringify(postData)
+  };
+  UrlFetchApp.fetch(url, options);
+}
+//////////////// End SentToLine //////////////
+
+///////////////////Start SentToLineFlex////////////////////////////////////////////////  
+function SentToLineFlex(replyToken,firstSite,firstLocation,firstSubDistrict,firstDistrict,firstProvince,firstLat,firstLong,secondSite,secondLocation,secondSubDistrict,secondtDistrict,secondtProvince,secondLat,secondLong,thirdSite,thirdLocation,thirdSubDistrict,thirdDistrict,thirdProvince,thirdLat,thirdLong) {
+  var url = "https://api.line.me/v2/bot/message/reply";
+  var postData = {
+    "replyToken" : replyToken,
+    "messages":[
+       {
+  "type": "flex",
+  "altText": "this is a flex message",
+  "contents": 
+///////////////////// flex message input ////////
+  {
+  "type": "carousel",
+  "contents": [
+    {
+      "type": "bubble",
+      "size": "kilo",
+      "header": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "text",
+            "text": firstSite,
+            "color": "#ffffff",
+            "align": "start",
+            "size": "lg",
+            "gravity": "center"
+          },
+          {
+            "type": "text",
+            "text": firstLocation,
+            "color": "#ffffff",
+            "align": "start",
+            "size": "xl",
+            "gravity": "center",
+            "margin": "lg"
+          }
+        ],
+        "backgroundColor": "#27ACB2",
+        "paddingTop": "19px",
+        "paddingAll": "12px",
+        "paddingBottom": "16px"
+      },
+      "body": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+              {
+                "type": "text",
+                "text": "ตำบล"
+              },
+              {
+                "type": "text",
+                "text": firstSubDistrict
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+              {
+                "type": "text",
+                "text": "อำเภอ"
+              },
+              {
+                "type": "text",
+                "text": firstDistrict
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+              {
+                "type": "text",
+                "text": "จังหวัด"
+              },
+              {
+                "type": "text",
+                "text": firstProvince
+              }
+            ]
+          }
+        ],
+        "spacing": "md",
+        "paddingAll": "12px"
+      },
+      "footer": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "button",
+            "action": {
+              "type": "uri",
+              "label": "MAP",
+              "uri": "http://www.google.com/maps/place/"+firstLat+"%2C"+firstLong	
+            },
+            "flex": 2,
+            "style": "secondary",
+            "height": "sm"
+          }
+        ]
+      },
+      "styles": {
+        "footer": {
+          "separator": false
+        }
+      }
+    },
+    {
+      "type": "bubble",
+      "size": "kilo",
+      "header": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "text",
+            "text": secondSite,
+            "color": "#ffffff",
+            "align": "start",
+            "size": "lg",
+            "gravity": "center"
+          },
+          {
+            "type": "text",
+            "text": secondLocation,
+            "color": "#ffffff",
+            "align": "start",
+            "size": "xl",
+            "gravity": "center",
+            "margin": "lg"
+          }
+        ],
+        "backgroundColor": "#FF6B6E",
+        "paddingTop": "19px",
+        "paddingAll": "12px",
+        "paddingBottom": "16px"
+      },
+      "body": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+              {
+                "type": "text",
+                "text": "ตำบล"
+              },
+              {
+                "type": "text",
+                "text": secondSubDistrict
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+              {
+                "type": "text",
+                "text": "อำเภอ"
+              },
+              {
+                "type": "text",
+                "text": secondtDistrict
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+              {
+                "type": "text",
+                "text": "จังหวัด"
+              },
+              {
+                "type": "text",
+                "text": secondtProvince
+              }
+            ]
+          }
+        ],
+        "spacing": "md",
+        "paddingAll": "12px"
+      },
+      "footer": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "button",
+            "action": {
+              "type": "uri",
+              "label": "MAP",
+              "uri": "http://www.google.com/maps/place/"+secondLat+"%2C"+secondLong
+            },
+            "flex": 2,
+            "style": "secondary",
+            "height": "sm"
+          }
+        ]
+      },
+      "styles": {
+        "footer": {
+          "separator": false
+        }
+      }
+    },
+    {
+      "type": "bubble",
+      "size": "kilo",
+      "header": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "text",
+            "text": thirdSite,
+            "color": "#ffffff",
+            "align": "start",
+            "size": "lg",
+            "gravity": "center"
+          },
+          {
+            "type": "text",
+            "text": thirdLocation,
+            "color": "#ffffff",
+            "align": "start",
+            "size": "xl",
+            "gravity": "center",
+            "margin": "lg"
+          }
+        ],
+        "backgroundColor": "#A17DF5",
+        "paddingTop": "19px",
+        "paddingAll": "12px",
+        "paddingBottom": "16px"
+      },
+      "body": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+              {
+                "type": "text",
+                "text": "ตำบล"
+              },
+              {
+                "type": "text",
+                "text": thirdSubDistrict
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+              {
+                "type": "text",
+                "text": "อำเภอ"
+              },
+              {
+                "type": "text",
+                "text": thirdDistrict
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+              {
+                "type": "text",
+                "text": "จังหวัด"
+              },
+              {
+                "type": "text",
+                "text": thirdProvince
+              }
+            ]
+          }
+        ],
+        "spacing": "md",
+        "paddingAll": "12px"
+      },
+      "footer": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "button",
+            "action": {
+              "type": "uri",
+              "label": "MAP",
+              "uri": "http://www.google.com/maps/place/"+thirdLat+"%2C"+thirdLong
+            },
+            "flex": 2,
+            "style": "secondary",
+            "height": "sm"
+          }
+        ]
+      },
+      "styles": {
+        "footer": {
+          "separator": false
+        }
+      }
+    }
+  ]
+}
+///////////////////// END flex message inputt /////////
+       }
+    ]
+  };
+  var options = {
+    "method" : "post",
+    "headers" : {
+      "Content-Type" : "application/json",
+      "Authorization" : "Bearer " + channel_access_token
+    },
+    "payload" : JSON.stringify(postData)
+  };
+  UrlFetchApp.fetch(url, options);
+}
+//////////////// End SentToLineFlex //////////////
+
+//////////////// Push Location///////////////
+function pushlocation(replyToken,searchWord,lat_data,long_data,loc_name) {
+  var url = "https://api.line.me/v2/bot/message/reply";
+  var postData = {
+    "replyToken" : replyToken,
+    "messages" : [
+                 {
+                  "type": "location",
+                  "title": searchWord,
+                  "address": loc_name,
+                  "latitude": lat_data,
+                  "longitude": long_data
+                  }
+    ]
+  };
+  var options = {
+    "method" : "post",
+    "headers" : {
+      "Content-Type" : "application/json",
+      "Authorization" : "Bearer " + channel_access_token
+    },
+    "payload" : JSON.stringify(postData)
+  };
+  UrlFetchApp.fetch(url, options);
+}
+//////////////////////////// End Push Location /////////////
